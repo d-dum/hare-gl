@@ -1,0 +1,3 @@
+ld: cannot open output file gl: Is a directory
+Error: ld: exited with status 1
+hare build: build failed

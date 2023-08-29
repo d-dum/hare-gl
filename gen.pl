@@ -110,3 +110,59 @@ foreach my $type_element (@type_elements) {
     print "$constant_declaration\n";
 }
 
+
+my @command_elements = $document->findnodes('//command');
+
+foreach my $command_element (@command_elements) {
+    # Extract function information from XML
+    my $return_type = $command_element->findvalue('./proto');
+    my @return_type_buf = split(' ', $return_type);
+    pop(@return_type_buf);
+    $return_type = join(" ", @return_type_buf);
+    my $function_name = $command_element->findvalue('./proto/name');
+    my @param_elements = $command_element->findnodes('./param');
+
+    next if $function_name =~ /glBinormalPointerEXT/;
+    next if $function_name =~ /glCreateSyncFromCLeventARB/;
+    next if $function_name =~ /ARB/;
+    next if $function_name =~ /Sync/;
+    next if $function_name =~ /Vk/;
+    next if $function_name =~ /Debug/;
+
+    # Convert return type to (type | error)
+    $return_type =~ s/(.+)/$1/;
+
+    # Convert param elements into "hare" parameter declarations
+    my @param_declarations;
+    foreach my $param_element (@param_elements) {
+        my $param_type = $param_element->findvalue('./ptype');
+        my $param_name = $param_element->findvalue('./name');
+
+        if ($param_type eq '') {
+            my @param_name_byf = split(" ", $param_element);
+            pop(@param_name_byf);
+
+            $param_type = join(" ", @param_name_byf);
+            @param_name_byf = split('>', $param_type);
+            $param_type = pop(@param_name_byf);
+        }
+
+        $param_name =~ s/size/_size/g;
+        $param_name =~ s/type/_type/g;
+        $param_name =~ s/offset/_offset/g;
+        $param_name =~ s/len/_len/g;
+        # const void
+        $param_type =~ s/const/nullable/g;
+        $param_type =~ s/void/*void/g;
+        my $param_declaration = "$param_name: $param_type";
+        push @param_declarations, $param_declaration;
+    }
+
+    # Create the "hare" function declaration
+    my $hare_function_declaration = "\@symbol(\"$function_name\") fn _$function_name(" . join(", ", @param_declarations) . ") $return_type;";
+
+    # Print or store the generated "hare" function declaration
+    print "$hare_function_declaration\n";
+
+    last if $function_name =~ /glGetFramebufferParameterivMESA/;
+}
